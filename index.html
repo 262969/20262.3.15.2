@@ -266,4 +266,167 @@
             border-radius: 50%;
             width: 24px;
             height: 24px;
-            animation: spin 1s
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* 响应式调整 */
+        @media (max-width: 480px) {
+            .card-container { padding: 30px 20px; }
+            h1 { font-size: 1.5rem; }
+            .icon-box { width: 80px; height: 80px; }
+            .icon-box i { font-size: 2.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 背景元素 -->
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+    <div class="bg-orb orb-3"></div>
+    <div class="particles"></div>
+
+    <!-- 主卡片 -->
+    <div class="card-container">
+        <div class="icon-box">
+            <div class="ripple"></div>
+            <div class="ripple"></div>
+            <div class="ripple"></div>
+            <i class="fas fa-mobile-screen-button" id="main-icon"></i>
+        </div>
+
+        <h1 id="title-text">正在为您准备资源...</h1>
+        <p id="desc-text">系统正在验证访问权限，请稍候。</p>
+
+        <!-- 加载状态 -->
+        <div id="loading-area" style="display: flex; justify-content: center; align-items: center;">
+            <div class="loader"></div>
+            <span>安全校验中</span>
+        </div>
+
+        <!-- 成功后的按钮 (仅移动端可见) -->
+        <div id="mobile-action" style="display: none;">
+            <button class="action-btn" onclick="performRedirect()">
+                <i class="fas fa-arrow-right-to-bracket" style="margin-right: 8px;"></i> 立即前往
+            </button>
+            <div class="status-msg">即将跳转至官方资源页</div>
+        </div>
+
+        <!-- 电脑端提示 (仅 PC 可见) -->
+        <div id="pc-action" class="pc-hint">
+            <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 10px; color: #fff;">
+                <i class="fas fa-desktop" style="color: #00f2fe; margin-right: 8px;"></i> 电脑端无法直接下载
+            </div>
+            <p style="font-size: 0.9rem; margin-bottom: 0;">
+                为了保障资源安全与体验，<br>请使用手机浏览器或微信扫描下方二维码访问。
+            </p>
+            
+            <!-- 【修改处】这里直接引用你上传的 qrcode.png -->
+            <div class="qr-placeholder">
+                <img src="qrcode.png" alt="手机访问二维码" style="width:100%; height:100%; display: block;">
+            </div>
+            
+            <p style="font-size: 0.8rem; color: rgba(255,255,255,0.5); margin-top: 10px;">
+                或使用手机访问当前网址
+            </p>
+        </div>
+    </div>
+
+    <script>
+        (async function() {
+            // 配置项
+            const config = {
+                redirectDelay: 800, 
+                isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+            };
+
+            // DOM 元素
+            const els = {
+                title: document.getElementById('title-text'),
+                desc: document.getElementById('desc-text'),
+                loading: document.getElementById('loading-area'),
+                mobileAction: document.getElementById('mobile-action'),
+                pcAction: document.getElementById('pc-action'),
+                icon: document.getElementById('main-icon')
+            };
+
+            // 获取 ID
+            const urlParams = new URLSearchParams(window.location.search);
+            const resourceId = urlParams.get('id');
+
+            if (!resourceId) {
+                showError("缺少资源标识 (ID)");
+                return;
+            }
+
+            try {
+                // 1. 获取数据
+                const response = await fetch('links.json');
+                if (!response.ok) throw new Error("网络响应异常");
+                const data = await response.json();
+
+                const targetUrl = data[resourceId];
+
+                if (!targetUrl) {
+                    showError("未找到该资源，请检查链接是否正确");
+                    return;
+                }
+
+                // 2. 验证成功，更新 UI
+                els.loading.style.display = 'none';
+                els.icon.className = 'fas fa-check-circle';
+                els.icon.style.background = 'linear-gradient(to bottom, #4ade80, #16a34a)';
+                els.icon.style.webkitBackgroundClip = 'text';
+                els.icon.style.webkitTextFillColor = 'transparent';
+                
+                els.title.innerText = "资源验证通过";
+                els.desc.innerText = "已准备好安全下载通道";
+
+                if (config.isMobile) {
+                    // === 手机端逻辑 ===
+                    els.mobileAction.style.display = 'block';
+                    window.targetLink = targetUrl; 
+                } else {
+                    // === 电脑端逻辑 ===
+                    els.pcAction.style.display = 'block';
+                    els.desc.innerText = "检测到电脑环境，请转移至手机";
+                    els.title.innerText = "请在手机端打开";
+                }
+
+            } catch (err) {
+                console.error(err);
+                showError("系统繁忙，请稍后重试");
+            }
+
+            function showError(msg) {
+                els.loading.style.display = 'none';
+                els.icon.className = 'fas fa-exclamation-triangle';
+                els.icon.style.background = 'linear-gradient(to bottom, #f87171, #dc2626)';
+                els.icon.style.webkitBackgroundClip = 'text';
+                els.icon.style.webkitTextFillColor = 'transparent';
+                els.title.innerText = "访问失败";
+                els.desc.innerText = msg;
+            }
+        })();
+
+        // 执行跳转函数
+        function performRedirect() {
+            if (window.targetLink) {
+                const btn = document.querySelector('.action-btn');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> 跳转中...';
+                btn.style.opacity = '0.8';
+                
+                setTimeout(() => {
+                    window.location.href = window.targetLink;
+                }, 800);
+            }
+        }
+    </script>
+</body>
+</html>
